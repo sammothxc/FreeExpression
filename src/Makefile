@@ -137,10 +137,10 @@ COMMON_CFLAGS := \
 # Debug: matches the working Atmel Studio build (DEBUG defined, -g2, no gc-sections)
 # Release: smaller, NDEBUG defined
 ifeq ($(CONFIG),Debug)
-    CFLAGS  := $(COMMON_CFLAGS) -Os -g2 -DDEBUG -DMACHINE_EXPRESSION
+    CFLAGS  := $(COMMON_CFLAGS) -Os -g2 -DDEBUG -DMACHINE_EXPRESSION -fcommon -ffunction-sections -fdata-sections
     LDFLAGS := -mmcu=$(MCU) -mrelax \
                -Wl,-u,vfprintf -Wl,-u,vfscanf \
-               -Wl,-Map=$(TARGET).map,--cref \
+               -Wl,-Map=$(TARGET).map,--cref,--gc-sections \
                -Wl,--start-group -lprintf_flt -lscanf_flt -lm -L$(U8G_DIR) -lm2u8 -Wl,--end-group
 else ifeq ($(CONFIG),Release)
     CFLAGS  := $(COMMON_CFLAGS) -Os -DNDEBUG -DMACHINE_EXPRESSION \
@@ -166,6 +166,11 @@ U8G_CFLAGS := \
     -Os                       \
     -g2                       \
     -Wall                     \
+	-Wno-error=incompatible-pointer-types \
+    -Wno-incompatible-pointer-types \
+    -ffunction-sections       \
+    -fdata-sections           \
+    -fcommon                  \
     -I$(U8G_DIR)
 
 # =============================================================================
