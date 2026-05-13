@@ -1,148 +1,252 @@
-# Freecut: open firmware for Cricut Expression 1 devices.
+# =============================================================================
+# Makefile for FreeExpression — Cricut Expression open-source firmware
+# =============================================================================
 #
-# 
-# MCU name
-MCU = atmega1281
-
-# Output format. (can be srec, ihex)
-FORMAT = ihex
-
-# Target file name (without extension).
-TARGET = freecut
-
-# Speed
-FCLK = 16000000UL
-
-# List C source files here. (C dependencies are automatically generated.)
-SRC = main.c usb.c lcd.c keypad.c timer.c stepper.c cli.c flash.c dial.c hpgl.c shvars.c scale.c
-
-# Assembler sources 
-ASRC = 
-
-# Optional compiler flags.
-CFLAGS  = -D$(MCU) $(TEST) $(CE) -Os -DFCLK=$(FCLK) -fpack-struct 
-CFLAGS += -fshort-enums -Wall -Werror -Wstrict-prototypes 
-
-# Optional assembler flags.
-ASFLAGS = -Wa,-ahlms=$(<:.S=.lst),-gstabs 
-
-# Optional linker flags.
-LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
-
-# Additional libraries
+# Derived from the Atmel Studio 7 project files (FreeExpression.cproj and
+# m2u8/m2u8.cproj). Targets GNU make + avr-gcc on Linux/macOS.
 #
-# Minimalistic printf version
-#LDFLAGS += -Wl,-u,vfprintf -lprintf_min
+# Build layout:
+#   m2u8/  — u8glib graphics library, built as a static library (libm2u8.a)
+#   .      — firmware sources, linked against libm2u8.a
 #
-# Floating point printf version (requires -lm below)
-#LDFLAGS +=  -Wl,-u,vfprintf -lprintf_flt
+# Usage:
+#   make                  build firmware (default: Debug, matches working .hex)
+#   make CONFIG=Release   build release variant
+#   make clean            remove all build artefacts
+#   make size             show flash/SRAM usage of the built ELF
+#   make check            verify ISP wiring (read chip signature, no flash)
+#   make prog             flash freecut.hex to the chip via avrdude
+#   make read_fuses       read current fuse bytes
 #
-# -lm = math library
-LDFLAGS += -lm
+# Programmer config — override on command line if needed, e.g.:
+#   make prog AVRDUDE_PROGRAMMER=usbasp AVRDUDE_PORT=usb
+# =============================================================================
 
-# ---------------------------------------------------------------------------
+# ---------- Target chip & clock ----------------------------------------------
+MCU          := atmega1281
+F_CPU        := 16000000UL
+TARGET       := freecut
 
-# Define directories, if needed.
+# ---------- Build configuration: Debug (default) or Release ------------------
+CONFIG       ?= Debug
 
-# Define programs and commands.
-SHELL = sh
+# ---------- Toolchain --------------------------------------------------------
+CC           := avr-gcc
+AR           := avr-ar
+OBJCOPY      := avr-objcopy
+OBJDUMP      := avr-objdump
+SIZE         := avr-size
 
-CC = avr-gcc
+# ---------- Source lists (from FreeExpression.cproj) -------------------------
+SRC := \
+    cli.c           \
+    dial.c          \
+    display.c       \
+    display_lcd.c   \
+    display_oled.c  \
+    flash.c         \
+    g_code.c        \
+    hpgl.c          \
+    keypad.c        \
+    main.c          \
+    scale.c         \
+    serial.c        \
+    shvars.c        \
+    spi.c           \
+    stepper.c       \
+    timer.c         \
+    usb.c
 
-OBJCOPY = avr-objcopy
-OBJDUMP = avr-objdump
+# ---------- u8glib sources (from m2u8/m2u8.cproj) ----------------------------
+# Built as a separate static library: m2u8/libm2u8.a
+U8G_SRC := \
+    u8g_bitmap.c                    \
+    u8g_circle.c                    \
+    u8g_clip.c                      \
+    u8g_com_api.c                   \
+    u8g_com_api_16gr.c              \
+    u8g_com_atmega_sw_spi.c         \
+    u8g_com_i2c.c                   \
+    u8g_com_io.c                    \
+    u8g_com_null.c                  \
+    u8g_cursor.c                    \
+    u8g_delay.c                     \
+    u8g_dev_null.c                  \
+    u8g_dev_ssd1325_nhd27oled_bw_new.c \
+    u8g_dev_ssd1325_nhd27oled_gr_new.c \
+    u8g_ellipse.c                   \
+    u8g_font.c                      \
+    u8g_font_data.c                 \
+    u8g_line.c                      \
+    u8g_ll_api.c                    \
+    u8g_page.c                      \
+    u8g_pb.c                        \
+    u8g_pb14v1.c                    \
+    u8g_pb16h1.c                    \
+    u8g_pb16h2.c                    \
+    u8g_pb16v1.c                    \
+    u8g_pb16v2.c                    \
+    u8g_pb32h1.c                    \
+    u8g_pb8h1.c                     \
+    u8g_pb8h1f.c                    \
+    u8g_pb8h2.c                     \
+    u8g_pb8h8.c                     \
+    u8g_pb8v1.c                     \
+    u8g_pb8v2.c                     \
+    u8g_pbxh16.c                    \
+    u8g_pbxh24.c                    \
+    u8g_polygon.c                   \
+    u8g_rect.c                      \
+    u8g_rot.c                       \
+    u8g_scale.c                     \
+    u8g_state.c                     \
+    u8g_u16toa.c                    \
+    u8g_u8toa.c                     \
+    u8g_virtual_screen.c
 
-# Define all object files.
-OBJ = $(ASRC:.S=.o) $(SRC:.c=.o)
+# Prefix u8g sources with their directory
+U8G_DIR      := m2u8
+U8G_SRC_FULL := $(addprefix $(U8G_DIR)/,$(U8G_SRC))
+U8G_OBJ      := $(U8G_SRC_FULL:.c=.o)
+U8G_LIB      := $(U8G_DIR)/libm2u8.a
 
-# Define all listing files.
-LST = $(ASRC:.S=.lst) $(SRC:.c=.lst)
+# Firmware objects
+OBJ := $(SRC:.c=.o)
 
-# Combine all necessary flags and optional flags. Add target processor to flags.
-ALL_CFLAGS = -mmcu=$(MCU) -I. $(CFLAGS) 
-ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
+# ---------- Common compiler flags --------------------------------------------
+# These match Atmel Studio's defaults for AVR/C projects.
+COMMON_CFLAGS := \
+    -mmcu=$(MCU)              \
+    -DF_CPU=$(F_CPU)          \
+    -funsigned-char           \
+    -funsigned-bitfields      \
+    -fpack-struct             \
+    -fshort-enums             \
+    -fno-strict-aliasing      \
+    -mrelax                   \
+    -std=gnu99                \
+    -Wall                     \
+    -Wstrict-prototypes       \
+    -Wmissing-prototypes      \
+    -Werror-implicit-function-declaration \
+    -Wpointer-arith           \
+    -I.                       \
+    -I$(U8G_DIR)
 
-# Default target.
-all: $(TARGET).elf $(TARGET).hex $(TARGET).lss tags
+# ---------- Config-specific flags --------------------------------------------
+# Debug: matches the working Atmel Studio build (DEBUG defined, -g2, no gc-sections)
+# Release: smaller, NDEBUG defined
+ifeq ($(CONFIG),Debug)
+    CFLAGS  := $(COMMON_CFLAGS) -Os -g2 -DDEBUG -DMACHINE_EXPRESSION
+    LDFLAGS := -mmcu=$(MCU) -mrelax \
+               -Wl,-u,vfprintf -Wl,-u,vfscanf \
+               -Wl,-Map=$(TARGET).map,--cref \
+               -Wl,--start-group -lprintf_flt -lscanf_flt -lm -L$(U8G_DIR) -lm2u8 -Wl,--end-group
+else ifeq ($(CONFIG),Release)
+    CFLAGS  := $(COMMON_CFLAGS) -Os -DNDEBUG -DMACHINE_EXPRESSION \
+               -ffunction-sections -fdata-sections
+    LDFLAGS := -mmcu=$(MCU) -mrelax \
+               -Wl,--gc-sections \
+               -Wl,-Map=$(TARGET).map,--cref \
+               -Wl,--start-group -lm -L$(U8G_DIR) -lm2u8 -Wl,--end-group
+else
+    $(error CONFIG must be Debug or Release, not '$(CONFIG)')
+endif
 
-.PHONY: prog 
+# u8glib library uses simpler flags — it's a third-party lib, don't apply
+# the strict prototype/pointer-arith warnings to it. Just size and the basics.
+U8G_CFLAGS := \
+    -mmcu=$(MCU)              \
+    -DF_CPU=$(F_CPU)          \
+    -funsigned-char           \
+    -funsigned-bitfields      \
+    -fpack-struct             \
+    -fshort-enums             \
+    -mrelax                   \
+    -Os                       \
+    -g2                       \
+    -Wall                     \
+    -I$(U8G_DIR)
 
-#you may need to change this line to program your device
-prog: all 
-	avrdude -pm128 -cstk500v2 -b115200 -P/dev/ttyUSB0 -u -V -U flash:w:$(TARGET).hex:i 
+# =============================================================================
+# Build rules
+# =============================================================================
 
-# Create final output files (.hex) from ELF output file.
-%.hex: %.elf
-	$(OBJCOPY) -O $(FORMAT) -R .eeprom $< $@
+.PHONY: all clean size check prog read_fuses
 
-# Disassembly listing
-%.dis: %.elf
-	$(OBJDUMP) -d $< > $@
+all: $(TARGET).hex $(TARGET).eep $(TARGET).lss size
 
-# Create extended listing file from ELF output file.
-%.lss: %.elf
+# Link firmware against m2u8 static library
+$(TARGET).elf: $(OBJ) $(U8G_LIB)
+	$(CC) $(OBJ) -o $@ $(LDFLAGS)
+
+# Compile firmware sources
+%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+# Build the m2u8 static library
+$(U8G_LIB): $(U8G_OBJ)
+	$(AR) rcs $@ $^
+
+# Compile u8glib sources (uses U8G_CFLAGS, not the firmware CFLAGS)
+$(U8G_DIR)/%.o: $(U8G_DIR)/%.c
+	$(CC) -c $(U8G_CFLAGS) $< -o $@
+
+# Generate the .hex file (Intel HEX format) — this is what we flash
+$(TARGET).hex: $(TARGET).elf
+	$(OBJCOPY) -O ihex -R .eeprom -R .fuse -R .lock -R .signature $< $@
+
+# Generate the .eep file for EEPROM contents (if any)
+$(TARGET).eep: $(TARGET).elf
+	-$(OBJCOPY) -O ihex -j .eeprom \
+	    --set-section-flags=.eeprom="alloc,load" \
+	    --change-section-lma .eeprom=0 --no-change-warnings $< $@ 2>/dev/null || true
+
+# Generate disassembly listing — invaluable for debugging
+$(TARGET).lss: $(TARGET).elf
 	$(OBJDUMP) -h -S $< > $@
 
-# Link: create ELF output file from object files.
-.SECONDARY : $(TARGET).elf
-.PRECIOUS : $(OBJ)
-%.elf: $(OBJ)
-	$(CC) $(ALL_CFLAGS) $(OBJ) --output $@ $(LDFLAGS)
+size: $(TARGET).elf
+	@echo
+	@echo "=== Firmware size ==="
+	@$(SIZE) --format=avr --mcu=$(MCU) $(TARGET).elf
+	@echo
 
+clean:
+	rm -f $(OBJ) $(TARGET).elf $(TARGET).hex $(TARGET).eep
+	rm -f $(TARGET).lss $(TARGET).map
+	rm -f $(U8G_OBJ) $(U8G_LIB)
+	rm -f *.d $(U8G_DIR)/*.d
 
-# Compile: create object files from C source files.
-%.o : %.c
-	$(CC) -c $(ALL_CFLAGS) $< -o $@
+# =============================================================================
+# Programming (avrdude)
+# =============================================================================
 
+# Default to Arduino-as-ISP. Override on the command line:
+#   make prog AVRDUDE_PROGRAMMER=usbasp AVRDUDE_PORT=usb
+AVRDUDE_MCU         := m1281
+AVRDUDE_PROGRAMMER  ?= avrisp
+AVRDUDE_PORT        ?= /dev/ttyUSB0
+AVRDUDE_BAUD        ?= 19200
+AVRDUDE := avrdude -p $(AVRDUDE_MCU) -c $(AVRDUDE_PROGRAMMER) -P $(AVRDUDE_PORT) -b $(AVRDUDE_BAUD)
 
-# Compile: create assembler files from C source files.
-%.s : %.c
-	$(CC) -S $(ALL_CFLAGS) $< -o $@
+# Sanity check the ISP wiring — reads chip signature, doesn't write anything
+check:
+	$(AVRDUDE) -v
 
+# Read fuses
+read_fuses:
+	$(AVRDUDE) -U lfuse:r:-:h -U hfuse:r:-:h -U efuse:r:-:h
 
-# Assemble: create object files from assembler source files.
-%.o : %.S
-	$(CC) -c $(ALL_ASFLAGS) $< -o $@
+# Flash the firmware
+prog: $(TARGET).hex
+	$(AVRDUDE) -U flash:w:$(TARGET).hex:i
 
+# Auto-generated header dependency tracking
+-include $(OBJ:.o=.d)
+-include $(U8G_OBJ:.o=.d)
 
-# Target: clean project.
-
-clean :
-	rm -f *.hex
-	rm -f *.obj
-	rm -f *.elf
-	rm -f *.map
-	rm -f *.obj
-	rm -f *.sym
-	rm -f *.ssm
-	rm -f *.lnk
-	rm -f *.lss
-	rm -f *.lst
-	rm -f $(OBJ)
-	rm -f $(LST)
-	rm -f $(SRC:.c=.s)
-	rm -f $(SRC:.c=.d)
-	rm -f logfile
-
-
-# Automatically generate C source code dependencies. 
-# (Code originally taken from the GNU make user manual and modified (See README.txt Credits).)
-# Note that this will work with sh (bash) and sed that is shipped with WinAVR (see the SHELL variable defined above).
-# This may not work with other shells or other seds.
-%.d: %.c
-	set -e; $(CC) -MM $(ALL_CFLAGS) $< \
-	| sed  -e 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' \
-	> $@; [ -s $@ ] || rm -f $@
-
-
-# Remove the '-' if you want to see the dependency files generated.
--include $(SRC:.c=.d)
-
-
-# Listing of phony targets.
-.PHONY : all clean 
-
-tags: *.[hc]
-	ctags *.[hc]
-
-
+# Add -MMD -MP to emit .d files alongside .o files. This lets make know
+# which .h changes should trigger which .c rebuilds.
+CFLAGS      += -MMD -MP
+U8G_CFLAGS  += -MMD -MP
