@@ -64,3 +64,18 @@ After the machine moves the media/carriage, there is a time of about 1 minute (d
 ### Legal
 
 *Cricut is a trademark of PROVO CRAFT and this firmware is **not** a PROVO CRAFT product. This firmware was developed completely independently, without any documentation of PROVO CRAFT products, and without any and all original firmware. If you have problems with this firmware, do not consult PROVO CRAFT.
+
+## License
+
+Copyright 2026 sammothxc
+
+Freecut Air is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License version 2.
+
+Freecut Air is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Freecut Air. If not, see http://www.gnu.org/licenses/.
