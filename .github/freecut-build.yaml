@@ -1,0 +1,57 @@
+name: Build Freecut Firmware
+
+on:
+  # push:
+  #   branches: ["**"]
+  #   paths: ["freecut-firmware/**"]
+  # pull_request:
+  #   paths: ["freecut-firmware/**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: freecut-firmware
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AVR toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-avr avr-libc binutils-avr make
+
+      - name: Build
+        run: make clean && make -j$(nproc)
+
+      - name: Size report
+        run: avr-size --format=avr --mcu=atmega1281 freecut.elf
+
+      - name: Upload build artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: freecut-fw-${{ github.sha }}
+          path: |
+            freecut-firmware/freecut.hex
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/freecut-fw/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: freecut-fw-${{ github.sha }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Freecut Firmware ${{ github.ref_name }}"
+          files: |
+            freecut.hex
+          generate_release_notes: true
