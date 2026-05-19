@@ -3,9 +3,14 @@ name: Build Freecut Firmware
 on:
   # push:
   #   branches: ["**"]
-  #   paths: ["freecut-firmware/**"]
+  #   paths:
+  #     - "freecut-firmware/**"
+  #     - ".github/workflows/freecut-build.yml"
+  #   tags: ["freecut-fw/v*"]
   # pull_request:
-  #   paths: ["freecut-firmware/**"]
+  #   paths:
+  #     - "freecut-firmware/**"
+  #     - ".github/workflows/freecut-build.yml"
   workflow_dispatch: {}
 
 permissions:
