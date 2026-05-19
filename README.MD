@@ -16,12 +16,9 @@ Originally forked from https://github.com/thetazzbot/FreeExpression, which was f
 
 - Original firmware cannot be copied from another machine as it has been
 locked and cannot be read from the CPU
-
 - Original firmware cannot be restored through any PC application used for normal firmware upgrades
-
 - This firmware has only been tested on the machine that I have. It may not work on your machine. It may cause permanent damage, and it
 will certainly void your warranty
-
 - This firmware cannot read your original cartridges ever
 
 
