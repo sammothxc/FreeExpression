@@ -2,7 +2,7 @@
 
 Freecut Air is an open source project to replace the Cricut Expression's proprietary software stack. It combines a custom firmware for the Cricut itself (a fork of FreeExpression), a Python exporter that exports SVGs into self-contained .fcj (Freecut Job) files, and an ESP32-based wifi bridge that mounts inside the machine that runs a web UI for sending those jobs over the network to the cutter. Plug in the Cricut, open a browser, drop in a design, and cut.
 
-Originally forked from https://github.com/thetazzbot/FreeExpression, which was forked from https://github.com/Arlet/Freecut.
+Forked from https://github.com/thetazzbot/FreeExpression, which was originally forked from https://github.com/Arlet/Freecut.
 
 
 ## About the Cricut
